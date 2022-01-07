@@ -9,14 +9,14 @@ const fundTestPrivateKey = Buffer.from([
   0x49, 0x9b, 0x47, 0xee, 0xd6, 0x9d,
 ]);
 
-function numberToBigEndianBuffer(x) {
+function numberToBigEndianBuffer(x: number) {
   var hex = x.toString(16);
   return Uint8Array.from(
     Buffer.from(hex.padStart(hex.length + (hex.length % 2), "0"), "hex")
   );
 }
 
-const getPayinAddressForTicker = (ticker) => {
+const getPayinAddressForTicker = (ticker: string): string | null => {
   switch (ticker) {
     case "BTC":
       return "bc1qh9qljpv0ltjceyeaz8mydp5zgaswgswhwt3jgl";
@@ -29,23 +29,24 @@ const getPayinAddressForTicker = (ticker) => {
   }
 };
 
-const getFundData = ({ txId, ammount, ticker }) => {
+const getFundData = ({
+  txId,
+  ammount,
+  ticker,
+}: {
+  txId: string;
+  ammount: number;
+  ticker: string;
+}) => {
   const tr = new proto.ledger_swap.NewFundResponse();
 
   const transactionId = base64url.toBuffer(txId);
-
-  console.log("transactionID %s", transactionId.toString("hex"));
-
-  // FIXME: this is a BTC test address
-  // const payinAddress = "bc1qh9qljpv0ltjceyeaz8mydp5zgaswgswhwt3jgl";
 
   const payinAddress = getPayinAddressForTicker(ticker);
 
   if (!payinAddress) {
     throw new Error("No payinAddress for fund data");
   }
-
-  console.log({ txId, ammount, address: payinAddress });
 
   tr.setUserId("John Doe");
   tr.setAccountName("Card 1234");
@@ -63,8 +64,10 @@ const getFundData = ({ txId, ammount, ticker }) => {
   const message = Buffer.concat([Buffer.from("."), base64_payload]);
   const digest = Buffer.from(sha256.sha256.array(message));
 
-  const signature = secp256r1.signatureExport(
-    secp256r1.sign(digest, fundTestPrivateKey).signature
+  const signature = Buffer.from(
+    secp256r1.signatureExport(
+      secp256r1.sign(digest, fundTestPrivateKey).signature
+    )
   );
 
   return {

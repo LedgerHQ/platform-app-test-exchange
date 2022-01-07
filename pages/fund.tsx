@@ -1,12 +1,24 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import Head from "next/head";
-import LedgerLiveApi from "@ledgerhq/live-app-sdk";
-import { WindowMessageTransport } from "@ledgerhq/live-app-sdk";
+
+import {
+  FeesLevel,
+  FAMILIES,
+  EthereumTransaction,
+} from "@ledgerhq/live-app-sdk";
+
+import type {
+  Currency,
+  Account,
+  BitcoinTransaction,
+  RawSignedTransaction,
+} from "@ledgerhq/live-app-sdk";
+
 import { BigNumber } from "bignumber.js";
 
 import styles from "../styles/Home.module.css";
 import parseCurrencyUnit from "../src/utils/parseCurrencyUnit";
 import getFundData from "../src/fund/fundData";
+import { useApi } from "../src/providers/LedgerLiveSDKProvider";
 
 // FIXME: first test with BTC, then add ETH (will need to update getFundData function)
 const AVAILABLE_CURRENCIES = ["bitcoin", "ethereum"];
@@ -14,62 +26,71 @@ const AVAILABLE_CURRENCIES = ["bitcoin", "ethereum"];
 //NB the exchangeType determines which flow we will follow (swap: 0x00, sell: 0x01, fund: 0x02)
 const EXCHANGE_TYPE = 0x02;
 
+type FundRequest = {
+  provider: string;
+  amountFrom: string;
+  from: string;
+  refundAddress: string;
+  deviceTransactionId: string;
+};
+
+type FundData = {
+  binaryPayload: string;
+  signature: string;
+  amountExpectedFrom: number;
+  payinAddress: string;
+};
+
+const initialRequest: FundRequest = {
+  provider: "",
+  amountFrom: "",
+  from: "",
+  refundAddress: "",
+  deviceTransactionId: "",
+};
+
+// Test fund partner name
+const provider = "TEST_FUND";
+
 /**
  * This poc could be extended in order to support some minimal validation of
  * the inputs, but my take on it is that it would blurry the bottom-line and
  * not contribute much to the discussion.
  */
 const Fund = () => {
-  const api = useRef();
+  const api = useApi();
 
-  //   FIXME: need fund partner name
-  const provider = "TEST_FUND";
-
-  const [currencies, setCurrencies] = useState();
+  const [currencies, setCurrencies] = useState<Currency[]>();
   const [nonce, setNonce] = useState("");
   const [amount, setAmount] = useState("");
-  const [fromAccount, setFromAccount] = useState();
-  const [feesStrategy, setFeesStrategy] = useState("medium");
-  const [fund, setFund] = useState();
-  const [operation, setOperation] = useState();
+  const [fromAccount, setFromAccount] = useState<Account>();
+  const [feesStrategy, setFeesStrategy] = useState(FeesLevel.Slow);
+  const [fund, setFund] = useState<FundData>();
+  const [operation, setOperation] = useState<RawSignedTransaction>();
 
-  const [request, setRequest] = useState();
+  const [request, setRequest] = useState<FundRequest>(initialRequest);
 
   useEffect(() => {
-    const llapi = new LedgerLiveApi(new WindowMessageTransport());
-
-    llapi.connect();
-    llapi
-      .listCurrencies()
-      .then((sdkCurrencies) => setCurrencies(sdkCurrencies))
-      .then(() => {
-        api.current = llapi;
-        window.api = api.current;
-      });
-
-    return () => {
-      api.current = null;
-      void llapi.disconnect();
-    };
-  }, []);
+    api.listCurrencies().then((sdkCurrencies) => setCurrencies(sdkCurrencies));
+  }, [api]);
 
   const requestFrom = useCallback(() => {
-    api.current
-      .requestAccount({ currencies: AVAILABLE_CURRENCIES })
-      .then((account) => {
-        setFromAccount(account);
-        console.log(account);
-      });
-  }, []);
+    api.requestAccount({ currencies: AVAILABLE_CURRENCIES }).then((account) => {
+      setFromAccount(account);
+      console.log(account);
+    });
+  }, [api]);
 
   const requestNonce = useCallback(() => {
-    api.current.startExchange({ exchangeType: EXCHANGE_TYPE }).then(setNonce);
-  }, []);
+    api.startExchange({ exchangeType: EXCHANGE_TYPE }).then(setNonce);
+  }, [api]);
 
   const requestFund = useCallback(() => {
     // FIXME: request fund from partner using data in request, to get "binaryPayload" and "signature"
 
-    const currency = currencies.find((cur) => cur.id === fromAccount?.currency);
+    const currency = currencies?.find(
+      (cur) => cur.id === fromAccount?.currency
+    );
 
     if (!currency) {
       throw new Error("currency not found");
@@ -77,10 +98,8 @@ const Fund = () => {
 
     const amountToFund = parseCurrencyUnit(
       currency.units[0],
-      request.amountFrom.toString(10)
+      request.amountFrom
     );
-
-    console.log({ currency });
 
     const newFund = getFundData({
       txId: request.deviceTransactionId,
@@ -91,14 +110,24 @@ const Fund = () => {
   }, [request, currencies, fromAccount]);
 
   const completeExchange = useCallback(() => {
-    const transaction = {
+    if (!fund) {
+      throw new Error("'fund' is undefined");
+    }
+
+    if (!fromAccount) {
+      throw new Error("'fromAccount' is undefined");
+    }
+
+    // FIXME: need to genetare a tx based on family (currency)
+    const transaction: BitcoinTransaction | EthereumTransaction = {
       amount: new BigNumber(fund.amountExpectedFrom),
       recipient: fund.payinAddress,
-      family: fromAccount.currency,
+      // FIXME: Hacky as hell
+      family: fromAccount.currency as FAMILIES.BITCOIN | FAMILIES.ETHEREUM,
     };
 
     // Receive an operation object with the broadcasted transaction information including tx hash.
-    api.current
+    api
       .completeExchange({
         provider,
         fromAccountId: fromAccount.id,
@@ -109,7 +138,7 @@ const Fund = () => {
         exchangeType: EXCHANGE_TYPE,
       })
       .then(setOperation);
-  }, [fromAccount, fund, feesStrategy]);
+  }, [api, fromAccount, fund, feesStrategy]);
 
   // Progressively build the request object that will be used to request a fund with partner
   // FIXME: what is the request format for a fund? IS there a "fundApi" similar to "swapApi"?
@@ -125,27 +154,22 @@ const Fund = () => {
 
   return (
     <div>
-      <Head>
-        <title>Minimal Exchange Platform App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
       <div className={styles.header}>
         <button onClick={requestFrom}>{"From"}</button>
         <input
+          type="number"
           disabled={!fromAccount}
           onChange={(event) => setAmount(event.target.value)}
           placeholder="amount"
         />
         <select
           disabled={!fromAccount}
-          onChange={(event) => setFeesStrategy(event.target.value)}
+          onChange={(event) => setFeesStrategy(event.target.value as FeesLevel)}
           placeholder="fees"
         >
-          <option value="slow">Slow</option>
-          <option default value="medium">
-            Medium
-          </option>
-          <option value="fast">Fast</option>
+          <option value={FeesLevel.Slow}>Slow</option>
+          <option value={FeesLevel.Medium}>Medium</option>
+          <option value={FeesLevel.Fast}>Fast</option>
         </select>
         <button disabled={!amount} onClick={requestNonce}>
           {"Start"}
