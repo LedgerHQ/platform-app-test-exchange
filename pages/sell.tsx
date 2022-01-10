@@ -20,7 +20,7 @@ import styles from "../styles/Home.module.css";
 import parseCurrencyUnit from "../src/utils/parseCurrencyUnit";
 
 import { useApi } from "../src/providers/LedgerLiveSDKProvider";
-import getSellData from "../src/getSellData";
+import getData from "../src/getData";
 
 // FIXME: first test with BTC, then add ETH (will need to update getFundData function)
 const AVAILABLE_CURRENCIES = ["bitcoin", "ethereum"];
@@ -37,8 +37,8 @@ type SellRequest = {
 };
 
 type SellData = {
-  binaryPayload: string;
-  signature: string;
+  binaryPayload: Buffer;
+  signature: Buffer;
   amountExpectedFrom: number;
   payinAddress: string;
 };
@@ -103,7 +103,8 @@ const Sell = () => {
       request.amountFrom
     );
 
-    const newFund = getSellData({
+    const newFund = getData({
+      exchangeType: EXCHANGE_TYPE,
       txId: request.deviceTransactionId,
       ammount: amountToFund.toNumber(),
       ticker: currency.ticker,

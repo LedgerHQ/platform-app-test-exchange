@@ -17,8 +17,8 @@ import { BigNumber } from "bignumber.js";
 
 import styles from "../styles/Home.module.css";
 import parseCurrencyUnit from "../src/utils/parseCurrencyUnit";
-import getFundData from "../src/fund/fundData";
 import { useApi } from "../src/providers/LedgerLiveSDKProvider";
+import getData from "../src/getData";
 
 // FIXME: first test with BTC, then add ETH (will need to update getFundData function)
 const AVAILABLE_CURRENCIES = ["bitcoin", "ethereum"];
@@ -35,8 +35,8 @@ type FundRequest = {
 };
 
 type FundData = {
-  binaryPayload: string;
-  signature: string;
+  binaryPayload: Buffer;
+  signature: Buffer;
   amountExpectedFrom: number;
   payinAddress: string;
 };
@@ -101,7 +101,8 @@ const Fund = () => {
       request.amountFrom
     );
 
-    const newFund = getFundData({
+    const newFund = getData({
+      exchangeType: EXCHANGE_TYPE,
       txId: request.deviceTransactionId,
       ammount: amountToFund.toNumber(),
       ticker: currency.ticker,

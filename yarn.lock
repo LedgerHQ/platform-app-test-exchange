@@ -114,10 +114,9 @@
   resolved "https://registry.yarnpkg.com/@humanwhocodes/object-schema/-/object-schema-1.2.1.tgz#b520529ec21d8e5945a1851dfd1c32e94e39ff45"
   integrity sha512-ZnQMnLV4e7hDlUvw8H+U8ASL02SS2Gn6+9Ac3wGGLIe7+je2AeAOxPY+izIPJDfFDb7eDjev0Us8MO1iFRN8hA==
 
-"@ledgerhq/live-app-sdk@^0.5.0":
-  version "0.5.0"
-  resolved "https://registry.yarnpkg.com/@ledgerhq/live-app-sdk/-/live-app-sdk-0.5.0.tgz#1b41e2ae1b8c0da63528cc4ae90acfc9aa5c546e"
-  integrity sha512-5uiNXKgkF9FJ514hKJtvBS3I31Gx5lIkS8VIiKeq+Mnch1RtS6rjKr/ODykUD1rgmDU557fNMEDtZHbFPNI4Hg==
+"@ledgerhq/live-app-sdk@git+ssh://git@github.com:LedgerHQ/live-app-sdk.git#update-complete-exchange":
+  version "0.5.1"
+  resolved "git+ssh://git@github.com:LedgerHQ/live-app-sdk.git#9cb6adb8aa2d0e2dd35eff7cd075b870e91b58a8"
   dependencies:
     bignumber.js "^9.0.1"
     json-rpc-2.0 "^0.2.16"
