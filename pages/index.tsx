@@ -3,10 +3,9 @@ import React, { useState } from "react";
 import { ExchangeType } from "@ledgerhq/live-app-sdk";
 
 import Swap from "./swap";
-import Fund from "./fund";
-import Sell from "./sell";
 
 import styles from "../styles/Home.module.css";
+import Transfer from "./transfer";
 
 const ExchangeFlow = ({ exchangeType }: { exchangeType: ExchangeType }) => {
   switch (exchangeType) {
@@ -14,10 +13,8 @@ const ExchangeFlow = ({ exchangeType }: { exchangeType: ExchangeType }) => {
       return <Swap />;
 
     case ExchangeType.FUND:
-      return <Fund />;
-
     case ExchangeType.SELL:
-      return <Sell />;
+      return <Transfer exchangeType={exchangeType} />;
 
     default:
       return <div />;
@@ -29,6 +26,7 @@ const Home = () => {
 
   return (
     <div>
+      <div>Selected flow: {ExchangeType[exchangeType]}</div>
       <div className={styles.header}>
         <button onClick={() => setExchangeType(ExchangeType.SWAP)}>
           {"Swap flow"}

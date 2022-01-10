@@ -4,6 +4,7 @@ import {
   FeesLevel,
   FAMILIES,
   EthereumTransaction,
+  ExchangeType,
 } from "@ledgerhq/live-app-sdk";
 
 import type {
@@ -20,13 +21,13 @@ import parseCurrencyUnit from "../src/utils/parseCurrencyUnit";
 import { useApi } from "../src/providers/LedgerLiveSDKProvider";
 import getData from "../src/getData";
 
-// FIXME: first test with BTC, then add ETH (will need to update getFundData function)
+/**
+ * FIXME: for now only these currencies are handled for test purposes.
+ * Would need to generate test config for other assets to expend the list
+ */
 const AVAILABLE_CURRENCIES = ["bitcoin", "ethereum"];
 
-//NB the exchangeType determines which flow we will follow (swap: 0x00, sell: 0x01, fund: 0x02)
-const EXCHANGE_TYPE = 0x02;
-
-type FundRequest = {
+type Request = {
   provider: string;
   amountFrom: string;
   from: string;
@@ -34,14 +35,14 @@ type FundRequest = {
   deviceTransactionId: string;
 };
 
-type FundData = {
+type Data = {
   binaryPayload: Buffer;
   signature: Buffer;
   amountExpectedFrom: number;
   payinAddress: string;
 };
 
-const initialRequest: FundRequest = {
+const initialRequest: Request = {
   provider: "",
   amountFrom: "",
   from: "",
@@ -49,7 +50,7 @@ const initialRequest: FundRequest = {
   deviceTransactionId: "",
 };
 
-// Test fund partner name
+// Test partner name
 const provider = "TEST_FUND";
 
 /**
@@ -57,18 +58,24 @@ const provider = "TEST_FUND";
  * the inputs, but my take on it is that it would blurry the bottom-line and
  * not contribute much to the discussion.
  */
-const Fund = () => {
+const Transfer = ({
+  exchangeType,
+}: {
+  exchangeType: ExchangeType.FUND | ExchangeType.SELL;
+}) => {
   const api = useApi();
+
+  const exchangeTypeKey = ExchangeType[exchangeType];
 
   const [currencies, setCurrencies] = useState<Currency[]>();
   const [nonce, setNonce] = useState("");
   const [amount, setAmount] = useState("");
   const [fromAccount, setFromAccount] = useState<Account>();
   const [feesStrategy, setFeesStrategy] = useState(FeesLevel.Slow);
-  const [fund, setFund] = useState<FundData>();
+  const [data, setData] = useState<Data>();
   const [operation, setOperation] = useState<RawSignedTransaction>();
 
-  const [request, setRequest] = useState<FundRequest>(initialRequest);
+  const [request, setRequest] = useState<Request>(initialRequest);
 
   useEffect(() => {
     api.listCurrencies().then((sdkCurrencies) => setCurrencies(sdkCurrencies));
@@ -82,12 +89,11 @@ const Fund = () => {
   }, [api]);
 
   const requestNonce = useCallback(() => {
-    api.startExchange({ exchangeType: EXCHANGE_TYPE }).then(setNonce);
-  }, [api]);
+    api.startExchange({ exchangeType }).then(setNonce);
+  }, [api, exchangeType]);
 
-  const requestFund = useCallback(() => {
-    // FIXME: request fund from partner using data in request, to get "binaryPayload" and "signature"
-
+  // request fund or sell from partner using data in request, to get "binaryPayload" and "signature"
+  const requestData = useCallback(() => {
     const currency = currencies?.find(
       (cur) => cur.id === fromAccount?.currency
     );
@@ -101,18 +107,18 @@ const Fund = () => {
       request.amountFrom
     );
 
-    const newFund = getData({
-      exchangeType: EXCHANGE_TYPE,
+    const newData = getData({
+      exchangeType: exchangeType,
       txId: request.deviceTransactionId,
       ammount: amountToFund.toNumber(),
       ticker: currency.ticker,
     });
-    setFund(newFund);
-  }, [request, currencies, fromAccount]);
+    setData(newData);
+  }, [request, currencies, fromAccount, exchangeType]);
 
   const completeExchange = useCallback(() => {
-    if (!fund) {
-      throw new Error("'fund' is undefined");
+    if (!data) {
+      throw new Error("'data' is undefined");
     }
 
     if (!fromAccount) {
@@ -121,8 +127,8 @@ const Fund = () => {
 
     // FIXME: need to genetare a tx based on family (currency)
     const transaction: BitcoinTransaction | EthereumTransaction = {
-      amount: new BigNumber(fund.amountExpectedFrom),
-      recipient: fund.payinAddress,
+      amount: new BigNumber(data.amountExpectedFrom),
+      recipient: data.payinAddress,
       // FIXME: Hacky as hell
       family: fromAccount.currency as FAMILIES.BITCOIN | FAMILIES.ETHEREUM,
     };
@@ -133,16 +139,15 @@ const Fund = () => {
         provider,
         fromAccountId: fromAccount.id,
         transaction,
-        binaryPayload: fund.binaryPayload,
-        signature: fund.signature,
+        binaryPayload: data.binaryPayload,
+        signature: data.signature,
         feesStrategy,
-        exchangeType: EXCHANGE_TYPE,
+        exchangeType: exchangeType,
       })
       .then(setOperation);
-  }, [api, fromAccount, fund, feesStrategy]);
+  }, [api, fromAccount, data, feesStrategy, exchangeType]);
 
-  // Progressively build the request object that will be used to request a fund with partner
-  // FIXME: what is the request format for a fund? IS there a "fundApi" similar to "swapApi"?
+  // Progressively build the request object that will be used to request a fund or sell with partner
   useEffect(() => {
     setRequest({
       provider,
@@ -176,10 +181,10 @@ const Fund = () => {
           {"Start"}
         </button>
 
-        <button disabled={!nonce} onClick={requestFund}>
-          {"Request Fund"}
+        <button disabled={!nonce} onClick={requestData}>
+          {`Request ${exchangeTypeKey}`}
         </button>
-        <button disabled={!fund} onClick={completeExchange}>
+        <button disabled={!data} onClick={completeExchange}>
           {"Complete"}
         </button>
       </div>
@@ -193,14 +198,24 @@ const Fund = () => {
         )}
         {request && (
           <>
-            <h2>{"Local fund data"}</h2>
+            <h2>{`Local ${exchangeTypeKey} data`}</h2>
             <pre>{JSON.stringify(request, null, 2)}</pre>
           </>
         )}
-        {fund && (
+        {data && (
           <>
-            <h2>{"Provider fund data"}</h2>
-            <pre>{JSON.stringify(fund, null, 2)}</pre>
+            <h2>{`Provider ${exchangeTypeKey} data`}</h2>
+            <pre>
+              {JSON.stringify(
+                {
+                  ...data,
+                  binaryPayload: data.binaryPayload.toString("hex"),
+                  signature: data.signature.toString("hex"),
+                },
+                null,
+                2
+              )}
+            </pre>
           </>
         )}
       </div>
@@ -208,4 +223,4 @@ const Fund = () => {
   );
 };
 
-export default Fund;
+export default Transfer;
