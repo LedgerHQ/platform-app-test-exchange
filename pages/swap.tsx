@@ -1,14 +1,59 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Head from "next/head";
 import axios from "axios";
-import LedgerLiveApi, { FAMILIES } from "@ledgerhq/live-app-sdk";
-import { WindowMessageTransport } from "@ledgerhq/live-app-sdk";
+import {
+  Account,
+  BitcoinTransaction,
+  Currency,
+  EthereumTransaction,
+  ExchangeType,
+  FAMILIES,
+  FeesLevel,
+  RawSignedTransaction,
+  RippleTransaction,
+  StellarTransaction,
+  Transaction,
+} from "@ledgerhq/live-app-sdk";
 import styles from "../styles/Home.module.css";
 import parseCurrencyUnit from "../src/utils/parseCurrencyUnit";
+import { useApi } from "../src/providers/LedgerLiveSDKProvider";
 
-// FIXME: Fix types + use SDKProvider
+const AVAILABLE_CURRENCIES = [
+  "bitcoin",
+  "ethereum",
+  "dogecoin",
+  "stellar",
+  "ripple",
+];
 
-const AVAILABLE_CURRENCIES = ["bitcoin", "ethereum", "dogecoin", "stellar"];
+const exchangeType = ExchangeType.SWAP;
+
+type Request = {
+  provider: string;
+  amountFrom: string;
+  from: string;
+  to: string;
+  address: string;
+  refundAddress: string;
+  deviceTransactionId: string;
+};
+
+type Data = {
+  binaryPayload: Buffer;
+  signature: Buffer;
+  amountExpectedFrom: number;
+  payinAddress: string;
+};
+
+const initialRequest: Request = {
+  provider: "",
+  amountFrom: "",
+  from: "",
+  to: "",
+  address: "",
+  refundAddress: "",
+  deviceTransactionId: "",
+};
 
 const getFamilyFromCurrency = (currency: string) => {
   switch (currency) {
@@ -22,6 +67,9 @@ const getFamilyFromCurrency = (currency: string) => {
     case "stellar":
       return FAMILIES.STELLAR;
 
+    case "ripple":
+      return FAMILIES.RIPPLE;
+
     default:
       throw new Error(`Family '${currency}' not supported`);
   }
@@ -33,70 +81,53 @@ const getFamilyFromCurrency = (currency: string) => {
  * not contribute much to the discussion.
  */
 export default function Swap() {
-  const api = useRef();
+  const api = useApi();
 
   const provider = "changelly";
 
-  const [currencies, setCurrencies] = useState();
+  const [currencies, setCurrencies] = useState<Currency[]>();
   const [nonce, setNonce] = useState("");
   const [amount, setAmount] = useState("");
-  const [fromAccount, setFromAccount] = useState();
-  const [toAccount, setToAccount] = useState();
+  const [fromAccount, setFromAccount] = useState<Account>();
+  const [toAccount, setToAccount] = useState<Account>();
   const [rates, setRates] = useState();
-  const [feesStrategy, setFeesStrategy] = useState("medium");
-  const [swap, setSwap] = useState();
-  const [operation, setOperation] = useState();
+  const [feesStrategy, setFeesStrategy] = useState(FeesLevel.Slow);
+  const [data, setData] = useState<any>();
+  const [operation, setOperation] = useState<RawSignedTransaction>();
 
-  const [request, setRequest] = useState();
+  const [request, setRequest] = useState<Request>(initialRequest);
 
   useEffect(() => {
-    const llapi = new LedgerLiveApi(new WindowMessageTransport());
-
-    llapi.connect();
-    llapi
-      .listCurrencies()
-      .then((sdkCurrencies) => setCurrencies(sdkCurrencies))
-      .then(() => {
-        api.current = llapi;
-        window.api = api.current;
-      });
-
-    return () => {
-      api.current = null;
-      void llapi.disconnect();
-    };
-  }, []);
+    api.listCurrencies().then((sdkCurrencies) => setCurrencies(sdkCurrencies));
+  }, [api]);
 
   const requestFrom = useCallback(() => {
-    api.current
-      .requestAccount({ currencies: AVAILABLE_CURRENCIES })
-      .then((account) => {
-        setFromAccount(account);
-        console.log(account);
-        setToAccount();
-      });
-  }, []);
+    api.requestAccount({ currencies: AVAILABLE_CURRENCIES }).then((account) => {
+      setFromAccount(account);
+      setToAccount(undefined);
+    });
+  }, [api]);
 
   const requestTo = useCallback(() => {
-    api.current
+    api
       .requestAccount({
         currencies: AVAILABLE_CURRENCIES.filter(
           (c) => c !== fromAccount?.currency
         ),
       })
       .then(setToAccount);
-  }, [fromAccount?.currency]);
+  }, [api, fromAccount?.currency]);
 
   const requestNonce = useCallback(() => {
     //NB the exchangeType determines which flow we will follow (swap: 0x00, sell: 0x01, fund: 0x02)
-    api.current.startExchange({ exchangeType: 0x00 }).then(setNonce);
-  }, []);
+    api.startExchange({ exchangeType }).then(setNonce);
+  }, [api]);
 
   const requestSwap = useCallback(() => {
     axios
       .post("https://swap.ledger.com/v3/swap", request)
       .then((res) => {
-        setSwap(res.data);
+        setData(res.data);
       })
       .catch((e) => {
         console.log(e);
@@ -105,7 +136,14 @@ export default function Swap() {
   }, [request]);
 
   const completeExchange = useCallback(() => {
-    const currency = currencies.find((cur) => cur.id === fromAccount?.currency);
+    if (!fromAccount) {
+      throw new Error("fromAccount not found");
+    }
+    if (!toAccount) {
+      throw new Error("toAccount not found");
+    }
+
+    const currency = currencies?.find((cur) => cur.id === fromAccount.currency);
 
     if (!currency) {
       throw new Error("currency not found");
@@ -113,39 +151,45 @@ export default function Swap() {
 
     const amount = parseCurrencyUnit(
       currency.units[0],
-      swap.amountExpectedFrom.toString(10)
+      data.amountExpectedFrom.toString(10)
     );
 
-    const transaction = {
+    const transaction: Partial<
+      | BitcoinTransaction
+      | EthereumTransaction
+      | StellarTransaction
+      | RippleTransaction
+    > = {
       amount,
-      recipient: swap.payinAddress,
-      mode: "send",
-      feesStrategy,
-      family: getFamilyFromCurrency(fromAccount.currency),
+      recipient: data.payinAddress,
+      family: getFamilyFromCurrency(currency.id),
     };
 
     // Add currency specific payinExtraId
-    if (swap.from === "ripple") transaction.tag = swap.payinExtraId;
-    if (swap.from === "stellar") {
-      transaction.memoValue = swap.payinExtraId;
+    if (transaction.family === FAMILIES.RIPPLE) {
+      transaction.tag = data.payinExtraId;
+    }
+
+    if (transaction.family === FAMILIES.STELLAR) {
+      transaction.memoValue = data.payinExtraId;
       transaction.memoType = "MEMO_TEXT";
     }
 
     // Receive an operation object with the broadcasted transaction information including tx hash.
-    api.current
+    api
       .completeExchange({
         provider,
         fromAccountId: fromAccount.id,
         toAccountId: toAccount.id,
-        transaction,
-        binaryPayload: swap.binaryPayload,
-        signature: swap.signature,
+        transaction: transaction as Transaction,
+        binaryPayload: data.binaryPayload,
+        signature: data.signature,
         feesStrategy,
         //NB the exchangeType determines which flow we will follow (swap: 0x00, sell: 0x01, fund: 0x02)
         exchangeType: 0x00,
       })
       .then(setOperation);
-  }, [fromAccount, toAccount, swap, feesStrategy, currencies]);
+  }, [api, fromAccount, toAccount, data, feesStrategy, currencies]);
 
   const requestRates = useCallback(() => {
     const { from, to, amountFrom } = request;
@@ -154,7 +198,7 @@ export default function Swap() {
       .then((res) => {
         // Filter to changelly floating, to avoid wyre confusion when ip check doesnt work
         const maybeRates = res.data?.filter(
-          (rate) =>
+          (rate: any) =>
             rate.provider === "changelly" && rate.tradeMethod === "float"
         );
         setRates(maybeRates || []);
@@ -188,17 +232,17 @@ export default function Swap() {
           onChange={(event) => setAmount(event.target.value)}
           placeholder="amount"
         />
+
         <select
           disabled={!fromAccount || !toAccount}
-          onChange={(event) => setFeesStrategy(event.target.value)}
+          onChange={(event) => setFeesStrategy(event.target.value as FeesLevel)}
           placeholder="fees"
         >
-          <option value="slow">Slow</option>
-          <option default value="medium">
-            Medium
-          </option>
-          <option value="fast">Fast</option>
+          <option value={FeesLevel.Slow}>Slow</option>
+          <option value={FeesLevel.Medium}>Medium</option>
+          <option value={FeesLevel.Fast}>Fast</option>
         </select>
+
         <button disabled={!amount} onClick={requestNonce}>
           {"Start"}
         </button>
@@ -208,7 +252,7 @@ export default function Swap() {
         <button disabled={!rates} onClick={requestSwap}>
           {"Request Swap"}
         </button>
-        <button disabled={!swap} onClick={completeExchange}>
+        <button disabled={!data} onClick={completeExchange}>
           {"Complete"}
         </button>
       </div>
@@ -226,10 +270,10 @@ export default function Swap() {
             <pre>{JSON.stringify(request, null, 2)}</pre>
           </>
         )}
-        {swap && (
+        {data && (
           <>
             <h2>{"Provider swap data"}</h2>
-            <pre>{JSON.stringify(swap, null, 2)}</pre>
+            <pre>{JSON.stringify(data, null, 2)}</pre>
           </>
         )}
         {rates && rates[0] && (
