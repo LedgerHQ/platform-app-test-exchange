@@ -1,13 +1,31 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Head from "next/head";
-import Image from "next/image";
 import axios from "axios";
-import LedgerLiveApi from "@ledgerhq/live-app-sdk";
+import LedgerLiveApi, { FAMILIES } from "@ledgerhq/live-app-sdk";
 import { WindowMessageTransport } from "@ledgerhq/live-app-sdk";
 import styles from "../styles/Home.module.css";
 import parseCurrencyUnit from "../src/utils/parseCurrencyUnit";
 
+// FIXME: Fix types + use SDKProvider
+
 const AVAILABLE_CURRENCIES = ["bitcoin", "ethereum", "dogecoin", "stellar"];
+
+const getFamilyFromCurrency = (currency: string) => {
+  switch (currency) {
+    case "bitcoin":
+    case "dogecoin":
+      return FAMILIES.BITCOIN;
+
+    case "ethereum":
+      return FAMILIES.ETHEREUM;
+
+    case "stellar":
+      return FAMILIES.STELLAR;
+
+    default:
+      throw new Error(`Family '${currency}' not supported`);
+  }
+};
 
 /**
  * This poc could be extended in order to support some minimal validation of
@@ -50,11 +68,13 @@ export default function Swap() {
   }, []);
 
   const requestFrom = useCallback(() => {
-    api.current.requestAccount({ AVAILABLE_CURRENCIES }).then((account) => {
-      setFromAccount(account);
-      console.log(account);
-      setToAccount();
-    });
+    api.current
+      .requestAccount({ currencies: AVAILABLE_CURRENCIES })
+      .then((account) => {
+        setFromAccount(account);
+        console.log(account);
+        setToAccount();
+      });
   }, []);
 
   const requestTo = useCallback(() => {
@@ -101,6 +121,7 @@ export default function Swap() {
       recipient: swap.payinAddress,
       mode: "send",
       feesStrategy,
+      family: getFamilyFromCurrency(fromAccount.currency),
     };
 
     // Add currency specific payinExtraId
