@@ -1,3 +1,13 @@
+# platform-app-test-exchange
+
+A Live App allowing to test and debug interactions between the [live-app-sdk](https://github.com/LedgerHQ/live-app-sdk) exchange related features and the nano [app-exchange](https://github.com/LedgerHQ/app-exchange).
+
+## How it works
+
+The Live App generates and signs locally a protobuf payload, [expected by the nano app](https://github.com/LedgerHQ/app-exchange/blob/master/src/proto/protocol.proto), using a test partner config signed by a Ledger test key. For it to work with the nano exchange app, you will need to download a specific test version of the nano exchange app, either by selecting the provider n°7 in ledger live desktop under `Settings > Experimental features > Manager provider` or by [building and loading the nano app manually](https://developers.ledger.com/docs/nano-app/build/).
+
+---
+
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started
