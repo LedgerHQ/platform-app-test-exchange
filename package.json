@@ -8,9 +8,17 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ledgerhq/live-app-sdk": "0.6.0",
+    "axios": "^0.21.1",
+    "base64url": "^3.0.1",
+    "bignumber.js": "^9.0.1",
+    "google-protobuf": "^3.19.1",
+    "js-sha256": "^0.9.0",
+    "json-rpc-2.0": "^0.2.18",
     "next": "12.0.7",
     "react": "17.0.2",
-    "react-dom": "17.0.2"
+    "react-dom": "17.0.2",
+    "secp256r1": "^0.0.3"
   },
   "devDependencies": {
     "@types/node": "17.0.8",
