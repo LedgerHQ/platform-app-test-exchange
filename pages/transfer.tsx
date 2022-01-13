@@ -84,7 +84,6 @@ const Transfer = ({
   const requestFrom = useCallback(() => {
     api.requestAccount({ currencies: AVAILABLE_CURRENCIES }).then((account) => {
       setFromAccount(account);
-      console.log(account);
     });
   }, [api]);
 
@@ -209,6 +208,10 @@ const Transfer = ({
               {JSON.stringify(
                 {
                   ...data,
+                  /**
+                   * Note: display "binaryPayload" and "signature" buffers as
+                   * hex string for readability
+                   */
                   binaryPayload: data.binaryPayload.toString("hex"),
                   signature: data.signature.toString("hex"),
                 },

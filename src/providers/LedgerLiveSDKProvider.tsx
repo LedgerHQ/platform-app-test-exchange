@@ -44,10 +44,9 @@ const LedgerLiveSDKProvider = ({
 export const useApi = () => {
   const { api } = useContext(LedgerLiveSDKContext);
 
-  // This should never theoretically never happen
+  // This should theoretically never happen
   if (!api) {
     throw new Error("API not initialized");
-    // console.log("API not initialized");
   }
 
   return api;
