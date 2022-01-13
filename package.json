@@ -8,7 +8,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ledgerhq/live-app-sdk": "git+ssh://git@github.com:LedgerHQ/live-app-sdk.git#update-complete-exchange",
+    "@ledgerhq/live-app-sdk": "0.6.0",
     "axios": "^0.21.1",
     "base64url": "^3.0.1",
     "bignumber.js": "^9.0.1",
