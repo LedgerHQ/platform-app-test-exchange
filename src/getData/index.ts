@@ -6,7 +6,7 @@ import { ExchangeType } from "@ledgerhq/live-app-sdk";
 import numberToBigEndianBuffer from "../utils/numberToBigEndianBuffer";
 import getPayinAddressForTicker from "./getPayinAddressForTicker";
 
-export const testPrivateKey = Buffer.from([
+export const TEST_PRIVATE_KEY = Buffer.from([
   0x10, 0x67, 0xe5, 0xf6, 0xb3, 0x48, 0xea, 0xc2, 0x68, 0xb6, 0x4f, 0xc9, 0xeb,
   0x5a, 0x31, 0xa7, 0xd7, 0x9e, 0x33, 0xdf, 0xd6, 0xfe, 0xf7, 0x6e, 0xab, 0x9f,
   0x49, 0x9b, 0x47, 0xee, 0xd6, 0x9d,
@@ -23,7 +23,7 @@ const generatePayloadAndSignature = (
   const digest = Buffer.from(sha256.sha256.array(message));
 
   const signature = Buffer.from(
-    secp256r1.sign(digest, testPrivateKey).signature
+    secp256r1.sign(digest, TEST_PRIVATE_KEY).signature
   );
 
   return { binaryPayload: base64Payload, signature };

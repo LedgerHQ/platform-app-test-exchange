@@ -2,26 +2,23 @@
 
 A Live App allowing to test and debug interactions between the [live-app-sdk](https://github.com/LedgerHQ/live-app-sdk) exchange related features and the nano [app-exchange](https://github.com/LedgerHQ/app-exchange).
 
+For more information about creating a Live App and integrate it in Ledger Live, head on to our [Developer portal](https://developers.ledger.com/docs/platform-app/introduction/).
+
 ## How it works
 
-The Live App generates and signs locally a protobuf payload, [expected by the nano app](https://github.com/LedgerHQ/app-exchange/blob/master/src/proto/protocol.proto), using a test partner config signed by a Ledger test key. For it to work with the nano exchange app, you will need to download a specific test version of the nano exchange app, either by selecting the provider n°7 in ledger live desktop under `Settings > Experimental features > Manager provider` or by [building and loading the nano app manually](https://developers.ledger.com/docs/nano-app/build/).
+The Live App generates and signs locally a protobuf payload, [expected by the nano app](https://github.com/LedgerHQ/app-exchange/blob/master/src/proto/protocol.proto), using a test partner config signed by a Ledger test key. For it to work with the nano exchange app, you will need to download a specific test version of the nano exchange app, using one of these techniques:
+
+- by selecting the provider n°7 in ledger live desktop under `Settings > Experimental features > Manager provider`
+- by [building and loading the nano app manually](https://developers.ledger.com/docs/nano-app/build/), with the `TEST_PUBLIC_KEY` flag if you want to use the provided `TEST_PRIVATE_KEY`
 
 <details>
   <summary>Video demo 🎥</summary>
 
-  
-
 https://user-images.githubusercontent.com/9203826/149354415-84fb387c-4a68-4bea-af04-cd74b422f0ea.mp4
 
-
-  
 </details>
 
----
-
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
-
-## Getting Started
+## Getting started
 
 First, run the development server:
 
@@ -31,25 +28,57 @@ npm run dev
 yarn dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+For test purposes, you can optionaly start the Ledger Live application with the following flags:
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+- `DISABLE_TRANSACTION_BROADCAST`: to prevent transactions for being broadcasted to the network, usefull if you just want to test payload generation and signature
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+- `MOCK_EXCHANGE_TEST_CONFIG`: to enable the use of the provided `TEST_PRIVATE_KEY`, used to sign payloads locally and use the test version of the app exchange. This is usefull if you don't have a partner configuration setup with Ledger yet.
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+Here is an example using these two flags with a Ledger Live build on macOS:
 
-## Learn More
+```bash
+DISABLE_TRANSACTION_BROADCAST=1 MOCK_EXCHANGE_TEST_CONFIG=1 /Volumes/Macintosh\ HD/Applications/Ledger\ Live.app/Contents/MacOS/Ledger\ Live
+```
 
-To learn more about Next.js, take a look at the following resources:
+Copy the following manifest in a `manifest.json` file.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```json
+{
+  "id": "test-app",
+  "name": "Test",
+  "url": "http://localhost:3000",
+  "homepageUrl": "",
+  "icon": "",
+  "platform": "all",
+  "apiVersion": "0.0.1",
+  "manifestVersion": "1",
+  "branch": "debug",
+  "categories": ["tools"],
+  "currencies": "*",
+  "content": {
+    "shortDescription": {
+      "en": "Test"
+    },
+    "description": {
+      "en": "Test"
+    }
+  },
+  "permissions": [
+    {
+      "method": "*"
+    }
+  ],
+  "domains": ["https://*"]
+}
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+Add this local manifest in Ledger Live to use this local test live-app in Ledger Live context.
+For further information, check out the [Developer Mode documentation](https://developers.ledger.com/docs/live-app/developer-mode/).
 
-## Deploy on Vercel
+## Further configuration
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+A `testPayinAddress.json` file is located at the root of the directory and is used to reference destination (third service provider) addresses, by cryptocurrency, used for the different flows.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+When using this repository locally for your tests, don't hesitate to override any of the default addresses with one that you control.
+
+**⚠️ WARNING ⚠️: DO NOT SEND MONEY TO ANY OF THE DEFAULT ADDRESSES PROVIDED IN THIS REPOSITORY. Your money will be lost forever**
