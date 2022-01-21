@@ -109,7 +109,7 @@ const Transfer = ({
     const newData = getData({
       exchangeType: exchangeType,
       txId: request.deviceTransactionId,
-      ammount: amountToFund.toNumber(),
+      amount: amountToFund.toNumber(),
       ticker: currency.ticker,
     });
     setData(newData);
