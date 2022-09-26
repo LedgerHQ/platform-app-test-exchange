@@ -16,13 +16,13 @@
     "js-sha256": "^0.9.0",
     "json-rpc-2.0": "^0.2.18",
     "next": "12.3.1",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "secp256r1": "^0.0.3"
   },
   "devDependencies": {
     "@types/node": "17.0.8",
-    "@types/react": "17.0.38",
+    "@types/react": "18.0.21",
     "eslint": "8.6.0",
     "eslint-config-next": "12.3.1",
     "typescript": "4.5.4"
