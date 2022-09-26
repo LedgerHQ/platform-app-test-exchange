@@ -46,13 +46,13 @@
   resolved "https://registry.yarnpkg.com/@humanwhocodes/object-schema/-/object-schema-1.2.1.tgz#b520529ec21d8e5945a1851dfd1c32e94e39ff45"
   integrity sha512-ZnQMnLV4e7hDlUvw8H+U8ASL02SS2Gn6+9Ac3wGGLIe7+je2AeAOxPY+izIPJDfFDb7eDjev0Us8MO1iFRN8hA==
 
-"@ledgerhq/live-app-sdk@0.6.0":
-  version "0.6.0"
-  resolved "https://registry.yarnpkg.com/@ledgerhq/live-app-sdk/-/live-app-sdk-0.6.0.tgz#65595132d73bd3834feafdaa34ad6aa87fb133b1"
-  integrity sha512-I4EfXn77Yz8jehgXPj61pgcfjW018eaCBOOBmfdDtYRTNQ5N3vybnEFjVJy16RMjphfKvZqs68r6ooY6o35/qQ==
+"@ledgerhq/live-app-sdk@0.8.1":
+  version "0.8.1"
+  resolved "https://registry.yarnpkg.com/@ledgerhq/live-app-sdk/-/live-app-sdk-0.8.1.tgz#e51d2ae014b551425aa0a71cd2c2825f6a751133"
+  integrity sha512-RYQS76VPu/e0+KHi8/Q1yFjdxOUENxxP21ncSjHBRbyLbF/CfD7WDGTsoYv3dCMS7em14Sg3mxOv1P2uaCbCVw==
   dependencies:
-    bignumber.js "^9.0.1"
-    json-rpc-2.0 "^0.2.16"
+    bignumber.js "^9.0.2"
+    json-rpc-2.0 "^1.1.0"
 
 "@next/env@12.3.1":
   version "12.3.1"
@@ -371,7 +371,7 @@ base64url@^3.0.1:
   resolved "https://registry.yarnpkg.com/base64url/-/base64url-3.0.1.tgz#6399d572e2bc3f90a9a8b22d5dbb0a32d33f788d"
   integrity sha512-ir1UPr3dkwexU7FdV8qBBbNDRUhMmIekYMFZfi+C/sLNnRESKPl23nB9b2pltqfOQNnGzsDdId90AEtG5tCx4A==
 
-bignumber.js@^9.0.1, bignumber.js@^9.1.0:
+bignumber.js@^9.0.2, bignumber.js@^9.1.0:
   version "9.1.0"
   resolved "https://registry.yarnpkg.com/bignumber.js/-/bignumber.js-9.1.0.tgz#8d340146107fe3a6cb8d40699643c302e8773b62"
   integrity sha512-4LwHK4nfDOraBCtst+wOWIHbu1vhvAPJK8g8nROd4iuc3PSEjWif/qwbkh8jwCJz6yDBvtU4KPynETgrfh7y3A==
@@ -1392,10 +1392,15 @@ js-yaml@^4.1.0:
   dependencies:
     argparse "^2.0.1"
 
-json-rpc-2.0@^0.2.16, json-rpc-2.0@^0.2.18:
+json-rpc-2.0@^0.2.18:
   version "0.2.19"
   resolved "https://registry.yarnpkg.com/json-rpc-2.0/-/json-rpc-2.0-0.2.19.tgz#082957f0d22d22f03473dbf5ffeeb20dcdeb1faa"
   integrity sha512-tegZKneDQjWintJS5Zlw8xNvJK0/xq4sct2M5AgfFmcCJFMjvrLgk1noH7OPfFgEQ+ScueuWdaGfikCPr+qBtg==
+
+json-rpc-2.0@^1.1.0:
+  version "1.4.1"
+  resolved "https://registry.yarnpkg.com/json-rpc-2.0/-/json-rpc-2.0-1.4.1.tgz#182349866ea04d7b692f099f8445b777bae74eab"
+  integrity sha512-OX1NJhpIfuK4GjDnJ/gKtZy1HOYo0l4eL0a4rb0rNeQheX1xlyQ9+JMmPzs/sFNthpS/TXKPWlGo09X7B5l81A==
 
 json-schema-traverse@^0.4.1:
   version "0.4.1"
