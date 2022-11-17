@@ -8,7 +8,7 @@ For more information about creating a Live App and integrate it in Ledger Live, 
 
 The Live App generates and signs locally a protobuf payload, [expected by the nano app](https://github.com/LedgerHQ/app-exchange/blob/master/src/proto/protocol.proto), using a test partner config signed by a Ledger test key. For it to work with the nano exchange app, you will need to download a specific test version of the nano exchange app, using one of these techniques:
 
-- by selecting the provider n°7 in ledger live desktop under `Settings > Experimental features > Manager provider`
+- by selecting the provider n°10 in ledger live desktop under `Settings > Experimental features > Manager provider`
 - by [building and loading the nano app manually](https://developers.ledger.com/docs/nano-app/build/), with the `TEST_PUBLIC_KEY` flag if you want to use the provided `TEST_PRIVATE_KEY`
 
 <details>
