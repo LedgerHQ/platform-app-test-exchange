@@ -1,31 +1,35 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
-  FeesLevel,
-  FAMILIES,
   EthereumTransaction,
   ExchangeType,
+  FAMILIES,
+  FeesLevel,
 } from "@ledgerhq/live-app-sdk";
 
 import type {
-  Currency,
   Account,
   BitcoinTransaction,
+  Currency,
   RawSignedTransaction,
 } from "@ledgerhq/live-app-sdk";
 
 import { BigNumber } from "bignumber.js";
 
-import styles from "../styles/Home.module.css";
-import parseCurrencyUnit from "../src/utils/parseCurrencyUnit";
-import { useApi } from "../src/providers/LedgerLiveSDKProvider";
 import getData from "../src/getData";
+import { useApi } from "../src/providers/LedgerLiveSDKProvider";
+import parseCurrencyUnit from "../src/utils/parseCurrencyUnit";
+import styles from "../styles/Home.module.css";
 
 /**
  * FIXME: for now only these currencies are handled for test purposes.
  * Would need to generate test config for other assets to expend the list
  */
-const AVAILABLE_CURRENCIES = ["bitcoin", "ethereum"];
+const AVAILABLE_CURRENCIES = [
+  "bitcoin",
+  "ethereum",
+  "ethereum/erc20/usd_tether__erc20_",
+];
 
 type Request = {
   provider: string;
@@ -78,13 +82,21 @@ const Transfer = ({
   const [request, setRequest] = useState<Request>(initialRequest);
 
   useEffect(() => {
-    api.listCurrencies().then((sdkCurrencies) => setCurrencies(sdkCurrencies));
+    api
+      .listCurrencies({ includeTokens: true })
+      .then((sdkCurrencies) => setCurrencies(sdkCurrencies));
   }, [api]);
 
   const requestFrom = useCallback(() => {
-    api.requestAccount({ currencies: AVAILABLE_CURRENCIES }).then((account) => {
-      setFromAccount(account);
-    });
+    api
+      .requestAccount({
+        currencies: AVAILABLE_CURRENCIES,
+        includeTokens: true,
+        allowAddAccount: true,
+      })
+      .then((account) => {
+        setFromAccount(account);
+      });
   }, [api]);
 
   const requestNonce = useCallback(() => {
@@ -124,12 +136,26 @@ const Transfer = ({
       throw new Error("'fromAccount' is undefined");
     }
 
+    const currency = currencies?.find(
+      (cur) => cur.id === fromAccount?.currency
+    );
+
+    if (!currency) {
+      throw new Error("currency not found");
+    }
+
+    /**
+     * FIXME: Hacky as hell
+     * we now handle token currencies, type in SDK should be updated accordingly
+     */
+    // @ts-ignore
+    const family = currency.parent || currency.family;
+
     // FIXME: need to genetare a tx based on family (currency)
     const transaction: BitcoinTransaction | EthereumTransaction = {
       amount: new BigNumber(data.amountExpectedFrom),
       recipient: data.payinAddress,
-      // FIXME: Hacky as hell
-      family: fromAccount.currency as FAMILIES.BITCOIN | FAMILIES.ETHEREUM,
+      family,
     };
 
     // Receive an operation object with the broadcasted transaction information including tx hash.
@@ -144,7 +170,7 @@ const Transfer = ({
         exchangeType: exchangeType,
       })
       .then(setOperation);
-  }, [api, fromAccount, data, feesStrategy, exchangeType]);
+  }, [api, fromAccount, data, feesStrategy, exchangeType, currencies]);
 
   // Progressively build the request object that will be used to request a fund or sell with partner
   useEffect(() => {
