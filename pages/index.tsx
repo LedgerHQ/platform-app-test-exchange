@@ -1,10 +1,7 @@
-import React, { useState } from "react";
-
-import { ExchangeType } from "@ledgerhq/live-app-sdk";
-
-import Swap from "./swap";
-
+import { ExchangeType } from "@ledgerhq/wallet-api-core";
+import { useState } from "react";
 import styles from "../styles/Home.module.css";
+import Swap from "./swap";
 import Transfer from "./transfer";
 
 const ExchangeFlow = ({ exchangeType }: { exchangeType: ExchangeType }) => {

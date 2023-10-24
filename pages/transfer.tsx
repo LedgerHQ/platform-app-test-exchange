@@ -1,23 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
-
+import { useWalletAPIClient } from "@ledgerhq/wallet-api-client-react";
 import {
-  EthereumTransaction,
-  ExchangeType,
-  FAMILIES,
-  FeesLevel,
-} from "@ledgerhq/live-app-sdk";
-
-import type {
   Account,
   BitcoinTransaction,
   Currency,
-  RawSignedTransaction,
-} from "@ledgerhq/live-app-sdk";
-
+  EthereumTransaction,
+  ExchangeComplete,
+  ExchangeType,
+} from "@ledgerhq/wallet-api-core";
 import { BigNumber } from "bignumber.js";
-
+import { useCallback, useEffect, useState } from "react";
 import getData from "../src/getData";
-import { useApi } from "../src/providers/LedgerLiveSDKProvider";
 import parseCurrencyUnit from "../src/utils/parseCurrencyUnit";
 import styles from "../styles/Home.module.css";
 
@@ -30,6 +22,8 @@ const AVAILABLE_CURRENCIES = [
   "ethereum",
   "ethereum/erc20/usd_tether__erc20_",
 ];
+
+type FeeStrategies = ExchangeComplete["params"]["feeStrategy"];
 
 type Request = {
   provider: string;
@@ -67,7 +61,7 @@ const Transfer = ({
 }: {
   exchangeType: ExchangeType.FUND | ExchangeType.SELL;
 }) => {
-  const api = useApi();
+  const { client } = useWalletAPIClient();
 
   const exchangeTypeKey = ExchangeType[exchangeType];
 
@@ -75,33 +69,33 @@ const Transfer = ({
   const [nonce, setNonce] = useState("");
   const [amount, setAmount] = useState("");
   const [fromAccount, setFromAccount] = useState<Account>();
-  const [feesStrategy, setFeesStrategy] = useState(FeesLevel.Slow);
+  const [feeStrategy, setFeeStrategy] = useState<FeeStrategies>("SLOW");
   const [data, setData] = useState<Data>();
-  const [operation, setOperation] = useState<RawSignedTransaction>();
+  const [transactionHash, setTransactionHash] = useState<string>();
 
   const [request, setRequest] = useState<Request>(initialRequest);
 
   useEffect(() => {
-    api
-      .listCurrencies({ includeTokens: true })
+    client?.currency
+      .list()
       .then((sdkCurrencies) => setCurrencies(sdkCurrencies));
-  }, [api]);
+  }, [client?.currency]);
 
   const requestFrom = useCallback(() => {
-    api
-      .requestAccount({
-        currencies: AVAILABLE_CURRENCIES,
-        includeTokens: true,
-        allowAddAccount: true,
+    client?.account
+      .request({
+        currencyIds: AVAILABLE_CURRENCIES,
       })
       .then((account) => {
         setFromAccount(account);
       });
-  }, [api]);
+  }, [client?.account]);
 
   const requestNonce = useCallback(() => {
-    api.startExchange({ exchangeType }).then(setNonce);
-  }, [api, exchangeType]);
+    client?.exchange
+      .start(exchangeType === ExchangeType.FUND ? "FUND" : "SELL")
+      .then(setNonce);
+  }, [client?.exchange, exchangeType]);
 
   // request fund or sell from partner using data in request, to get "binaryPayload" and "signature"
   const requestData = useCallback(() => {
@@ -114,7 +108,7 @@ const Transfer = ({
     }
 
     const amountToFund = parseCurrencyUnit(
-      currency.units[0],
+      currency.decimals,
       request.amountFrom
     );
 
@@ -159,18 +153,37 @@ const Transfer = ({
     };
 
     // Receive an operation object with the broadcasted transaction information including tx hash.
-    api
-      .completeExchange({
-        provider,
-        fromAccountId: fromAccount.id,
-        transaction,
-        binaryPayload: data.binaryPayload,
-        signature: data.signature,
-        feesStrategy,
-        exchangeType: exchangeType,
-      })
-      .then(setOperation);
-  }, [api, fromAccount, data, feesStrategy, exchangeType, currencies]);
+    if (exchangeType === ExchangeType.FUND) {
+      client?.exchange
+        .completeFund({
+          provider,
+          fromAccountId: fromAccount.id,
+          transaction,
+          binaryPayload: data.binaryPayload,
+          signature: data.signature,
+          feeStrategy,
+        })
+        .then(setTransactionHash);
+    } else {
+      client?.exchange
+        .completeSell({
+          provider,
+          fromAccountId: fromAccount.id,
+          transaction,
+          binaryPayload: data.binaryPayload,
+          signature: data.signature,
+          feeStrategy,
+        })
+        .then(setTransactionHash);
+    }
+  }, [
+    data,
+    fromAccount,
+    currencies,
+    exchangeType,
+    client?.exchange,
+    feeStrategy,
+  ]);
 
   // Progressively build the request object that will be used to request a fund or sell with partner
   useEffect(() => {
@@ -195,12 +208,14 @@ const Transfer = ({
         />
         <select
           disabled={!fromAccount}
-          onChange={(event) => setFeesStrategy(event.target.value as FeesLevel)}
+          onChange={(event) =>
+            setFeeStrategy(event.target.value as FeeStrategies)
+          }
           placeholder="fees"
         >
-          <option value={FeesLevel.Slow}>Slow</option>
-          <option value={FeesLevel.Medium}>Medium</option>
-          <option value={FeesLevel.Fast}>Fast</option>
+          <option value={"SLOW"}>Slow</option>
+          <option value={"MEDIUM"}>Medium</option>
+          <option value={"FAST"}>Fast</option>
         </select>
         <button disabled={!amount} onClick={requestNonce}>
           {"Start"}
@@ -215,10 +230,10 @@ const Transfer = ({
       </div>
       {/* Debug information */}
       <div className={styles.main}>
-        {operation && (
+        {transactionHash && (
           <>
-            <h2>{"Broadcasted Operation"}</h2>
-            <pre>{JSON.stringify(operation, null, 2)}</pre>
+            <h2>{"Broadcasted transactionHash"}</h2>
+            <pre>{transactionHash}</pre>
           </>
         )}
         {request && (
