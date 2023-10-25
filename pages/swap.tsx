@@ -1,22 +1,15 @@
-import React, { useCallback, useEffect, useState } from "react";
-import Head from "next/head";
-import axios from "axios";
+import { useWalletAPIClient } from "@ledgerhq/wallet-api-client-react";
 import {
   Account,
-  BitcoinTransaction,
   Currency,
-  EthereumTransaction,
-  ExchangeType,
-  FAMILIES,
-  FeesLevel,
-  RawSignedTransaction,
-  RippleTransaction,
-  StellarTransaction,
+  ExchangeComplete,
   Transaction,
-} from "@ledgerhq/live-app-sdk";
-import styles from "../styles/Home.module.css";
+} from "@ledgerhq/wallet-api-core";
+import axios from "axios";
+import Head from "next/head";
+import { useCallback, useEffect, useState } from "react";
 import parseCurrencyUnit from "../src/utils/parseCurrencyUnit";
-import { useApi } from "../src/providers/LedgerLiveSDKProvider";
+import styles from "../styles/Home.module.css";
 
 const AVAILABLE_CURRENCIES = [
   "bitcoin",
@@ -26,7 +19,7 @@ const AVAILABLE_CURRENCIES = [
   "ripple",
 ];
 
-const exchangeType = ExchangeType.SWAP;
+type FeeStrategies = ExchangeComplete["params"]["feeStrategy"];
 
 type Request = {
   provider: string;
@@ -55,33 +48,13 @@ const initialRequest: Request = {
   deviceTransactionId: "",
 };
 
-const getFamilyFromCurrency = (currency: string) => {
-  switch (currency) {
-    case "bitcoin":
-    case "dogecoin":
-      return FAMILIES.BITCOIN;
-
-    case "ethereum":
-      return FAMILIES.ETHEREUM;
-
-    case "stellar":
-      return FAMILIES.STELLAR;
-
-    case "ripple":
-      return FAMILIES.RIPPLE;
-
-    default:
-      throw new Error(`Family '${currency}' not supported`);
-  }
-};
-
 /**
  * This poc could be extended in order to support some minimal validation of
  * the inputs, but my take on it is that it would blurry the bottom-line and
  * not contribute much to the discussion.
  */
 export default function Swap() {
-  const api = useApi();
+  const { client } = useWalletAPIClient();
 
   const provider = "changelly";
 
@@ -91,37 +64,40 @@ export default function Swap() {
   const [fromAccount, setFromAccount] = useState<Account>();
   const [toAccount, setToAccount] = useState<Account>();
   const [rates, setRates] = useState();
-  const [feesStrategy, setFeesStrategy] = useState(FeesLevel.Slow);
-  const [data, setData] = useState<any>();
-  const [operation, setOperation] = useState<RawSignedTransaction>();
+  const [feeStrategy, setFeeStrategy] = useState<FeeStrategies>("SLOW");
+  const [data, setData] = useState<any>({});
+  const [transactionHash, setTransactionHash] = useState<string>();
 
   const [request, setRequest] = useState<Request>(initialRequest);
 
   useEffect(() => {
-    api.listCurrencies().then((sdkCurrencies) => setCurrencies(sdkCurrencies));
-  }, [api]);
+    client?.currency
+      .list()
+      .then((sdkCurrencies) => setCurrencies(sdkCurrencies));
+  }, [client?.currency]);
 
   const requestFrom = useCallback(() => {
-    api.requestAccount({ currencies: AVAILABLE_CURRENCIES }).then((account) => {
-      setFromAccount(account);
-      setToAccount(undefined);
-    });
-  }, [api]);
+    client?.account
+      .request({ currencyIds: AVAILABLE_CURRENCIES })
+      .then((account) => {
+        setFromAccount(account);
+        setToAccount(undefined);
+      });
+  }, [client?.account]);
 
   const requestTo = useCallback(() => {
-    api
-      .requestAccount({
-        currencies: AVAILABLE_CURRENCIES.filter(
+    client?.account
+      .request({
+        currencyIds: AVAILABLE_CURRENCIES.filter(
           (c) => c !== fromAccount?.currency
         ),
       })
       .then(setToAccount);
-  }, [api, fromAccount?.currency]);
+  }, [client?.account, fromAccount?.currency]);
 
   const requestNonce = useCallback(() => {
-    //NB the exchangeType determines which flow we will follow (swap: 0x00, sell: 0x01, fund: 0x02)
-    api.startExchange({ exchangeType }).then(setNonce);
-  }, [api]);
+    client?.exchange.start("SWAP").then(setNonce);
+  }, [client?.exchange]);
 
   const requestSwap = useCallback(() => {
     axios
@@ -150,46 +126,52 @@ export default function Swap() {
     }
 
     const amount = parseCurrencyUnit(
-      currency.units[0],
+      currency.decimals,
       data.amountExpectedFrom.toString(10)
     );
 
-    const transaction: Partial<
-      | BitcoinTransaction
-      | EthereumTransaction
-      | StellarTransaction
-      | RippleTransaction
-    > = {
+    const transaction: Partial<Transaction> = {
       amount,
       recipient: data.payinAddress,
-      family: getFamilyFromCurrency(currency.id),
+      family: currency.type === "CryptoCurrency" ? currency.family : "ethereum", // not the best but default to eth for token currency, maybe we should add parentFamily in TokenCurrency
     };
 
     // Add currency specific payinExtraId
-    if (transaction.family === FAMILIES.RIPPLE) {
+    if (transaction.family === "ripple") {
       transaction.tag = data.payinExtraId;
     }
 
-    if (transaction.family === FAMILIES.STELLAR) {
+    if (transaction.family === "stellar") {
       transaction.memoValue = data.payinExtraId;
       transaction.memoType = "MEMO_TEXT";
     }
 
     // Receive an operation object with the broadcasted transaction information including tx hash.
-    api
-      .completeExchange({
+    client?.exchange
+      .completeSwap({
         provider,
         fromAccountId: fromAccount.id,
         toAccountId: toAccount.id,
         transaction: transaction as Transaction,
         binaryPayload: data.binaryPayload,
         signature: data.signature,
-        feesStrategy,
-        //NB the exchangeType determines which flow we will follow (swap: 0x00, sell: 0x01, fund: 0x02)
-        exchangeType: 0x00,
+        feeStrategy,
+        swapId: "",
+        rate: 0,
       })
-      .then(setOperation);
-  }, [api, fromAccount, toAccount, data, feesStrategy, currencies]);
+      .then(setTransactionHash);
+  }, [
+    fromAccount,
+    toAccount,
+    currencies,
+    data.amountExpectedFrom,
+    data.payinAddress,
+    data.binaryPayload,
+    data.signature,
+    data.payinExtraId,
+    client?.exchange,
+    feeStrategy,
+  ]);
 
   const requestRates = useCallback(() => {
     const { from, to, amountFrom } = request;
@@ -235,12 +217,14 @@ export default function Swap() {
 
         <select
           disabled={!fromAccount || !toAccount}
-          onChange={(event) => setFeesStrategy(event.target.value as FeesLevel)}
+          onChange={(event) =>
+            setFeeStrategy(event.target.value as FeeStrategies)
+          }
           placeholder="fees"
         >
-          <option value={FeesLevel.Slow}>Slow</option>
-          <option value={FeesLevel.Medium}>Medium</option>
-          <option value={FeesLevel.Fast}>Fast</option>
+          <option value={"SLOW"}>Slow</option>
+          <option value={"MEDIUM"}>Medium</option>
+          <option value={"FAST"}>Fast</option>
         </select>
 
         <button disabled={!amount} onClick={requestNonce}>
@@ -258,10 +242,10 @@ export default function Swap() {
       </div>
       {/* Debug information */}
       <div className={styles.main}>
-        {operation && (
+        {transactionHash && (
           <>
-            <h2>{"Broadcasted Operation"}</h2>
-            <pre>{JSON.stringify(operation, null, 2)}</pre>
+            <h2>{"Broadcasted transactionHash"}</h2>
+            <pre>{transactionHash}</pre>
           </>
         )}
         {request && (

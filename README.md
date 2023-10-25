@@ -1,8 +1,8 @@
 # platform-app-test-exchange
 
-A Live App allowing to test and debug interactions between the [live-app-sdk](https://github.com/LedgerHQ/live-app-sdk) exchange related features and the nano [app-exchange](https://github.com/LedgerHQ/app-exchange).
+A Live App allowing to test and debug interactions between the [wallet-api](https://github.com/LedgerHQ/wallet-api) exchange related features and the nano [app-exchange](https://github.com/LedgerHQ/app-exchange).
 
-For more information about creating a Live App and integrate it in Ledger Live, head on to our [Developer portal](https://developers.ledger.com/docs/platform-app/introduction/).
+For more information about creating a Live App and integrate it in Ledger Live, head on to our [Developer portal](https://developers.ledger.com/docs/live-app/start-here/).
 
 ## How it works
 
@@ -28,11 +28,11 @@ npm run dev
 yarn dev
 ```
 
-For test purposes, you can optionaly start the Ledger Live application with the following flags:
+For test purposes, you can optionally start the Ledger Live application with the following flags:
 
-- `DISABLE_TRANSACTION_BROADCAST`: to prevent transactions for being broadcasted to the network, usefull if you just want to test payload generation and signature
+- `DISABLE_TRANSACTION_BROADCAST`: to prevent transactions for being broadcasted to the network, useful if you just want to test payload generation and signature
 
-- `MOCK_EXCHANGE_TEST_CONFIG`: to enable the use of the provided `TEST_PRIVATE_KEY`, used to sign payloads locally and use the test version of the app exchange. This is usefull if you don't have a partner configuration setup with Ledger yet.
+- `MOCK_EXCHANGE_TEST_CONFIG`: to enable the use of the provided `TEST_PRIVATE_KEY`, used to sign payloads locally and use the test version of the app exchange. This is useful if you don't have a partner configuration setup with Ledger yet.
 
 Here is an example using these two flags with a Ledger Live build on macOS:
 
@@ -50,7 +50,7 @@ Copy the following manifest in a `manifest.json` file.
   "homepageUrl": "",
   "icon": "",
   "platform": "all",
-  "apiVersion": "0.0.1",
+  "apiVersion": "^2.0.0",
   "manifestVersion": "1",
   "branch": "debug",
   "categories": ["tools"],
@@ -64,11 +64,12 @@ Copy the following manifest in a `manifest.json` file.
     }
   },
   "permissions": [
-    {
-      "method": "*"
-    }
+    "account.request",
+    "currency.list",
+    "exchange.start",
+    "exchange.complete"
   ],
-  "domains": ["https://*"]
+  "domains": ["http://", "https://"]
 }
 ```
 

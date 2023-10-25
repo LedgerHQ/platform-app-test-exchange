@@ -1,10 +1,10 @@
-import "./protocol_pb.js";
-import secp256r1 from "secp256r1";
-import sha256 from "js-sha256";
+import { ExchangeType } from "@ledgerhq/wallet-api-core";
 import base64url from "base64url";
-import { ExchangeType } from "@ledgerhq/live-app-sdk";
+import sha256 from "js-sha256";
+import secp256r1 from "secp256r1";
 import numberToBigEndianBuffer from "../utils/numberToBigEndianBuffer";
 import getPayinAddressForTicker from "./getPayinAddressForTicker";
+import "./protocol_pb.js";
 
 export const TEST_PRIVATE_KEY = Buffer.from([
   0x10, 0x67, 0xe5, 0xf6, 0xb3, 0x48, 0xea, 0xc2, 0x68, 0xb6, 0x4f, 0xc9, 0xeb,
