@@ -32,10 +32,22 @@ type Request = {
 };
 
 type Data = {
-  binaryPayload: Buffer;
-  signature: Buffer;
+  provider: string;
+  swapId: string;
+  apiExtraFee: number;
+  apiFee: number;
+  refundAddress: string;
   amountExpectedFrom: number;
+  amountExpectedTo: number;
+  status: string;
+  from: string;
+  to: string;
   payinAddress: string;
+  payoutAddress: string;
+  createdAt: string;
+  binaryPayload: string;
+  signature: string;
+  payinExtraId?: number;
 };
 
 const initialRequest: Request = {
@@ -65,7 +77,7 @@ export default function Swap() {
   const [toAccount, setToAccount] = useState<Account>();
   const [rates, setRates] = useState();
   const [feeStrategy, setFeeStrategy] = useState<FeeStrategies>("SLOW");
-  const [data, setData] = useState<any>({});
+  const [data, setData] = useState<Data>();
   const [transactionHash, setTransactionHash] = useState<string>();
 
   const [request, setRequest] = useState<Request>(initialRequest);
@@ -125,6 +137,10 @@ export default function Swap() {
       throw new Error("currency not found");
     }
 
+    if (!data) {
+      throw new Error("data not found");
+    }
+
     const amount = parseCurrencyUnit(
       currency.decimals,
       data.amountExpectedFrom.toString(10)
@@ -142,7 +158,7 @@ export default function Swap() {
     }
 
     if (transaction.family === "stellar") {
-      transaction.memoValue = data.payinExtraId;
+      transaction.memoValue = `${data.payinExtraId}`;
       transaction.memoType = "MEMO_TEXT";
     }
 
@@ -153,25 +169,14 @@ export default function Swap() {
         fromAccountId: fromAccount.id,
         toAccountId: toAccount.id,
         transaction: transaction as Transaction,
-        binaryPayload: data.binaryPayload,
-        signature: data.signature,
+        binaryPayload: Buffer.from(data.binaryPayload, "hex"),
+        signature: Buffer.from(data.signature, "hex"),
         feeStrategy,
-        swapId: "",
+        swapId: data.swapId,
         rate: 0,
       })
       .then(setTransactionHash);
-  }, [
-    fromAccount,
-    toAccount,
-    currencies,
-    data.amountExpectedFrom,
-    data.payinAddress,
-    data.binaryPayload,
-    data.signature,
-    data.payinExtraId,
-    client?.exchange,
-    feeStrategy,
-  ]);
+  }, [fromAccount, toAccount, currencies, data, client?.exchange, feeStrategy]);
 
   const requestRates = useCallback(() => {
     const { from, to, amountFrom } = request;

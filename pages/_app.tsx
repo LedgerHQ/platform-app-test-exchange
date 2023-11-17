@@ -4,22 +4,22 @@ import type { AppProps } from "next/app";
 import { PropsWithChildren } from "react";
 import "../styles/globals.css";
 
-function TransportProvider({ children }: PropsWithChildren) {
-  function getWalletAPITransport(): Transport {
-    if (typeof window === "undefined") {
-      return {
-        onMessage: undefined,
-        send: () => {},
-      };
-    }
-
-    const transport = new WindowMessageTransport();
-    transport.connect();
-    return transport;
+function getWalletAPITransport(): Transport {
+  if (typeof window === "undefined") {
+    return {
+      onMessage: undefined,
+      send: () => {},
+    };
   }
 
-  const transport = getWalletAPITransport();
+  const transport = new WindowMessageTransport();
+  transport.connect();
+  return transport;
+}
 
+const transport = getWalletAPITransport();
+
+function TransportProvider({ children }: PropsWithChildren) {
   return (
     <WalletAPIProvider transport={transport}>{children}</WalletAPIProvider>
   );

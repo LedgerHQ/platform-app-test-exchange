@@ -1,5 +1,6 @@
 import { ExchangeType } from "@ledgerhq/wallet-api-core";
-import { useState } from "react";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 import styles from "../styles/Home.module.css";
 import Swap from "./swap";
 import Transfer from "./transfer";
@@ -19,10 +20,18 @@ const ExchangeFlow = ({ exchangeType }: { exchangeType: ExchangeType }) => {
 };
 
 const Home = () => {
+  const router = useRouter();
+  const [theme, setTheme] = useState(router.query.theme);
   const [exchangeType, setExchangeType] = useState(ExchangeType.SWAP);
 
+  useEffect(() => {
+    if (router.query.theme) {
+      setTheme(router.query.theme);
+    }
+  }, [router.query.theme]);
+
   return (
-    <div>
+    <div style={theme === "dark" ? { color: "white" } : undefined}>
       <div>Selected flow: {ExchangeType[exchangeType]}</div>
       <div className={styles.header}>
         <button onClick={() => setExchangeType(ExchangeType.SWAP)}>
